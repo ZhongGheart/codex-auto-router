@@ -1,0 +1,39 @@
+{
+  "name": "codex-auto-router",
+  "version": "0.1.0",
+  "description": "Dynamic task-complexity routing for Codex with TypeSafe judgment and CC Switch model awareness.",
+  "author": {
+    "name": "ZhongGheart",
+    "url": "https://github.com/ZhongGheart"
+  },
+  "homepage": "https://github.com/ZhongGheart/codex-auto-router",
+  "repository": "https://github.com/ZhongGheart/codex-auto-router",
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "codex-plugin",
+    "agent-routing",
+    "typesafe",
+    "cc-switch"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Codex Auto Router",
+    "shortDescription": "Dynamic model and reasoning routing for Codex subagents.",
+    "longDescription": "Routes software-engineering tasks across quick, standard, deep, and architect agents. Uses deterministic fast paths, TypeSafe semantic judgment for ambiguous tasks, live CC Switch model discovery, and evidence-based escalation.",
+    "developerName": "ZhongGheart",
+    "category": "Coding",
+    "capabilities": [
+      "Automation",
+      "Code",
+      "Routing"
+    ],
+    "websiteURL": "https://github.com/ZhongGheart/codex-auto-router",
+    "defaultPrompt": [
+      "Route this task to the smallest sufficient Codex agent.",
+      "Choose the right model and reasoning level for this change.",
+      "Escalate this task when the current tier is insufficient."
+    ],
+    "brandColor": "#2563EB"
+  }
+}

@@ -1,0 +1,136 @@
+# Routing policy
+
+## Dynamic model mapping
+
+The router resolves the active model set from CC Switch on every invocation:
+
+1. `CC_SWITCH_MODELS_URL`, `--models-url`, or the configured provider
+   `base_url` plus `/models` when available.
+2. The `model_catalog_json` path configured in `~/.codex/config.toml`.
+3. An explicit `--catalog <path>` used for tests or recovery.
+
+The four custom agent files do not declare `model` or
+`model_reasoning_effort`. The parent passes the resolved values as explicit
+spawn overrides. This is what lets the same routing policy move from DeepSeek to
+GPT models through CC Switch without editing the agents.
+
+When the GPT family is available, the intended mapping is:
+
+| Tier | Agent | Preferred model | Preferred reasoning |
+| --- | --- | --- | --- |
+| QUICK | `quick` | `gpt-5.6-luna` | `low` |
+| STANDARD | `standard` | `gpt-5.6-terra` | `medium` |
+| DEEP | `deep` | `gpt-5.6-sol` | `high` |
+| ARCHITECT | `architect` | `gpt-6-astra` | `high` |
+
+When the active CC Switch provider exposes the DeepSeek family, the same policy
+adapts to:
+
+| Tier | Agent | Resolved model | Resolved reasoning |
+| --- | --- | --- | --- |
+| QUICK | `quick` | `deepseek-flash` | `low` |
+| STANDARD | `standard` | `deepseek-v4-pro` | `high` |
+| DEEP | `deep` | `deepseek-v4-pro` | `max` |
+| ARCHITECT | `architect` | `deepseek-v4-pro` | `max` |
+
+The script scores model identifiers and display names by family intent. It
+prefers Luna or fast/mini models for QUICK, Terra or balanced/pro models for
+STANDARD, Sol or pro models for DEEP, and Astra or the strongest available model
+for ARCHITECT. It then selects an exact supported reasoning level or the nearest
+higher level. If adjacent tiers resolve to the same model, it raises the
+stronger tier's reasoning level when a higher level is available so the tiers
+remain meaningfully separated.
+
+If Astra is unavailable, ARCHITECT falls back to Sol and raises reasoning to the
+next supported level, such as `xhigh`, instead of selecting a weaker family.
+If no catalog can be read, model resolution becomes `unavailable`; use inherited
+model settings rather than inventing a slug.
+
+After CC Switch changes provider, start a new Codex task or restart the client
+before relying on spawn model overrides. The router itself reads the new live
+catalog immediately, but an already-open client session may cache the model
+choices exposed by its subagent tool schema.
+
+
+## Deterministic fast path
+
+The router should avoid TypeSafe when the task is already unambiguous:
+
+- `quick`: explicit search, locate, read, list, grep, summarize, format, rename,
+  or a single known mechanical change with no behavioral risk.
+- `deep`: explicit security, concurrency, race, deadlock, performance,
+  cross-module, migration, or difficult root-cause language.
+- `architect`: explicit whole-system architecture, cross-system redesign,
+  platform-wide migration, irreversible change, or major public-contract
+  decision.
+
+Normal feature implementation and ordinary bug fixes are routed through TypeSafe
+when the router cannot resolve them from an explicit fast-path signal.
+
+## Tier boundaries
+
+### QUICK
+
+Use when the answer is mostly retrieval or a deterministic transformation.
+The quick agent must not design architecture, alter public contracts, make
+security decisions, or perform broad refactors. It reports an escalation rather
+than guessing when those boundaries appear.
+
+### STANDARD
+
+Use when the desired behavior is clear enough to implement and verify locally.
+The standard agent inspects relevant code, makes the smallest coherent change,
+runs appropriate validation, and escalates when the change crosses a module or
+contract boundary.
+
+### DEEP
+
+Use when causality, risk, or scope is not local. The deep agent traces behavior
+end-to-end, checks assumptions and edge cases, considers regressions, and
+prefers correctness over speed. It owns difficult diagnosis and cross-module
+implementation but does not make a system-wide architectural decision without
+escalating.
+
+### ARCHITECT
+
+Use sparingly. The architect agent compares credible approaches, checks
+consequences and failure modes, and produces the final architectural decision.
+It is not a general-purpose coding tier and must not be selected merely because
+the task is large.
+
+## Escalation rules
+
+Move exactly one tier by default:
+
+```text
+quick -> standard -> deep -> architect
+```
+
+Escalate when any of these is true:
+
+- the same root cause has failed at least two attempts;
+- the task expands from a bounded change into a cross-module or cross-service change;
+- security, concurrency, data corruption, or irreversible migration risk is discovered;
+- the selected agent explicitly reports insufficient context or reasoning;
+- TypeSafe confidence is below `0.65` and the resulting tier is not already architect;
+- a public or cross-boundary contract decision is required.
+
+Do not escalate because of a single ordinary compile error, a formatting failure,
+or an expected red test before the agent has investigated it. Do not downgrade a
+tier after it has been selected.
+
+## Subagent prompt contract
+
+Every routed subagent prompt should include:
+
+1. `Tier`: the selected tier and reason.
+2. `Model override`: the `model` and `reasoning_effort` returned by the router.
+3. `Outcome`: the observable result the parent needs.
+4. `Governing sources`: requirements, issue, files, or design decisions that constrain the work.
+5. `Evidence`: what has already been established and what remains unknown.
+6. `Write scope`: files or modules the agent may change, or `read-only`.
+7. `Validation`: the narrowest checks that prove the result.
+8. `Return`: result, files changed, checks run, uncertainty, and `escalation_needed` with exact evidence.
+
+The parent owns final synthesis and acceptance. A subagent must not merely
+announce a plan; it executes within its tier or returns a concrete blocker.
