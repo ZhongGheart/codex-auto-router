@@ -40,9 +40,20 @@ test("adapts to the DeepSeek catalog", () => {
   const payload = runRoutes(["--catalog", path.join(fixtures, "deepseek-catalog.json"), "--no-live-models"]);
   assert.deepEqual(compactRoutes(payload), {
     quick: ["deepseek-flash", "low"],
-    standard: ["deepseek-v4-pro", "high"],
-    deep: ["deepseek-v4-pro", "max"],
+    standard: ["deepseek-flash", "high"],
+    deep: ["deepseek-flash", "max"],
     architect: ["deepseek-v4-pro", "max"],
+  });
+});
+
+
+test("prefers GPT-6 when the catalog mixes GPT and DeepSeek models", () => {
+  const payload = runRoutes(["--catalog", path.join(fixtures, "mixed-catalog.json"), "--no-live-models"]);
+  assert.deepEqual(compactRoutes(payload), {
+    quick: ["gpt-6-luna", "high"],
+    standard: ["gpt-6-sol", "medium"],
+    deep: ["gpt-6-sol", "high"],
+    architect: ["gpt-6-astra", "high"],
   });
 });
 

@@ -76,6 +76,16 @@ architect  -> gpt-5.6-sol   / xhigh
 
 If GPT-6 Astra is unavailable, `architect` falls back to `gpt-6-sol` and raises reasoning to the next supported level, such as `xhigh`.
 
+When the active catalog contains only DeepSeek models, the router uses:
+
+```text
+quick      -> deepseek-flash   / low
+standard   -> deepseek-flash   / high
+deep       -> deepseek-flash   / max
+architect  -> deepseek-v4-pro  / max
+```
+
+
 The custom agent files intentionally omit `model` and `model_reasoning_effort`. The parent passes the resolved values as explicit spawn overrides, so switching CC Switch providers does not require editing the agents.
 
 ## Requirements

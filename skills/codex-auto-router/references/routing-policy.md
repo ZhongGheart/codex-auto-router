@@ -32,14 +32,13 @@ When GPT-6 is unavailable but GPT-5.6 is present, the router falls back to:
 | DEEP | `deep` | `gpt-5.6-sol` | `high` |
 | ARCHITECT | `architect` | `gpt-5.6-sol` | `xhigh` |
 
-When the active CC Switch provider exposes the DeepSeek family, the same policy
-adapts to:
+When the active catalog contains only DeepSeek models, the router uses:
 
 | Tier | Agent | Resolved model | Resolved reasoning |
 | --- | --- | --- | --- |
 | QUICK | `quick` | `deepseek-flash` | `low` |
-| STANDARD | `standard` | `deepseek-v4-pro` | `high` |
-| DEEP | `deep` | `deepseek-v4-pro` | `max` |
+| STANDARD | `standard` | `deepseek-flash` | `high` |
+| DEEP | `deep` | `deepseek-flash` | `max` |
 | ARCHITECT | `architect` | `deepseek-v4-pro` | `max` |
 
 The script scores model identifiers and display names by family intent. It

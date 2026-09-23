@@ -371,6 +371,49 @@ function selectModel(tier: Tier, models: CatalogModel[]): CatalogModel | null {
   return scored[0]?.model ?? null;
 }
 
+function isDeepSeekModel(model: CatalogModel): boolean {
+  return model.slug.toLowerCase().includes("deepseek");
+}
+
+function selectDeepSeekModel(models: CatalogModel[], token: string): CatalogModel | null {
+  return models.find((model) => isDeepSeekModel(model) && model.slug.toLowerCase().includes(token)) ?? null;
+}
+
+function planForDeepSeekOnly(models: CatalogModel[], source: string): RoutingPlan | null {
+  const deepSeekModels = models.filter(isDeepSeekModel);
+  if (deepSeekModels.length === 0 || deepSeekModels.length !== models.length) return null;
+
+  const flash = selectDeepSeekModel(models, "flash") ?? deepSeekModels[0];
+  const pro = selectDeepSeekModel(models, "pro") ?? flash;
+  if (!flash || !pro) return null;
+
+  const specs: Record<Tier, { model: CatalogModel; desiredEffort: Effort }> = {
+    quick: { model: flash, desiredEffort: "low" },
+    standard: { model: flash, desiredEffort: "high" },
+    deep: { model: flash, desiredEffort: "max" },
+    architect: { model: pro, desiredEffort: "max" },
+  };
+
+  const routes = {} as Record<Tier, RouteDefinition>;
+  for (const tier of TIERS) {
+    const spec = specs[tier];
+    routes[tier] = {
+      agent: TIER_META[tier].agent,
+      model: spec.model.slug,
+      reasoning_effort: chooseEffort(spec.model, spec.desiredEffort),
+      label: TIER_META[tier].label,
+      model_resolution: "dynamic",
+    };
+  }
+
+  return {
+    routes,
+    source,
+    available_models: models.map((model) => model.slug),
+    resolved: true,
+  };
+}
+
 function emptyRoutingPlan(source: string, reason: string): RoutingPlan {
   const routes = {} as Record<Tier, RouteDefinition>;
   for (const tier of TIERS) {
@@ -393,6 +436,9 @@ function emptyRoutingPlan(source: string, reason: string): RoutingPlan {
 
 function planFromCatalog(models: CatalogModel[], source: string): RoutingPlan {
   if (models.length === 0) return emptyRoutingPlan(source, "No usable models were found in the active catalog.");
+
+  const deepSeekPlan = planForDeepSeekOnly(models, source);
+  if (deepSeekPlan) return deepSeekPlan;
 
   const routes = {} as Record<Tier, RouteDefinition>;
   for (const tier of TIERS) {
@@ -751,8 +797,8 @@ function runSelfTest() {
   );
   const deepseekExpected = {
     quick: ["deepseek-flash", "low"],
-    standard: ["deepseek-v4-pro", "high"],
-    deep: ["deepseek-v4-pro", "max"],
+    standard: ["deepseek-flash", "high"],
+    deep: ["deepseek-flash", "max"],
     architect: ["deepseek-v4-pro", "max"],
   };
   const deepseekActual = Object.fromEntries(

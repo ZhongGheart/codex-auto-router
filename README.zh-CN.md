@@ -76,6 +76,16 @@ architect  -> gpt-5.6-sol   / xhigh
 
 如果 GPT-6 Astra 不可用，`architect` 会回退到 `gpt-6-sol`，并提升到支持的下一个推理等级，例如 `xhigh`。
 
+当前目录只有 DeepSeek 模型时，路由器使用：
+
+```text
+quick      -> deepseek-flash   / low
+standard   -> deepseek-flash   / high
+deep       -> deepseek-flash   / max
+architect  -> deepseek-v4-pro  / max
+```
+
+
 四个 Agent 文件故意不写死 `model` 和 `model_reasoning_effort`。父 Agent 会把路由结果作为显式 spawn 覆盖传入，因此通过 CC Switch 在 DeepSeek 与 GPT 模型之间切换时不需要修改 Agent。
 
 ## 要求
