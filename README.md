@@ -2,7 +2,7 @@
 
 Dynamic task-complexity routing for Codex subagents.
 
-`codex-auto-router` selects the cheapest sufficient execution tier for a software-engineering task, resolves the current model and reasoning level from the active CC Switch catalog, and escalates only when evidence requires it.
+`codex-auto-router` selects the cheapest sufficient execution tier for a software-engineering task, proposes a model and reasoning level from the active CC Switch catalog, and escalates only when evidence requires it.
 
 [中文说明](README.zh-CN.md)
 
@@ -22,10 +22,10 @@ codex-auto-router
 quick / standard / deep / architect
    |
    v
-live model + reasoning resolution
+catalog model + reasoning candidate
    |
    v
-Codex subagent with explicit model overrides
+Codex subagent with verified overrides or inherited settings
 ```
 
 The repository contains:
@@ -86,7 +86,7 @@ architect  -> deepseek-v4-pro  / max
 ```
 
 
-The custom agent files intentionally omit `model` and `model_reasoning_effort`. The parent passes the resolved values as explicit spawn overrides, so switching CC Switch providers does not require editing the agents.
+The custom agent files intentionally omit `model` and `model_reasoning_effort`. The router returns a `catalog_candidate`, with null `model` and `reasoning_effort` overrides and `model_resolution: catalog_unverified`. The parent checks the current session's spawn tool choices before passing that candidate as explicit overrides. If either choice is unavailable, it starts the selected agent with inherited settings. Switching CC Switch providers does not require editing the agent files.
 
 ## Requirements
 
@@ -95,7 +95,7 @@ The custom agent files intentionally omit `model` and `model_reasoning_effort`. 
 - `TYPESAFE_API_KEY` for semantic routing of ambiguous tasks
 - Optional: CC Switch local proxy for dynamic model switching
 
-Deterministic fast paths continue to work without TypeSafe. If model discovery fails, the router returns `model_resolution: unavailable` and uses inherited model settings instead of inventing a slug.
+Deterministic fast paths continue to work without TypeSafe. If model discovery fails, the router returns `model_resolution: unavailable` and uses inherited model settings instead of inventing a slug. A catalog candidate is never treated as a confirmed spawn model until the current session accepts it.
 
 ## Install
 

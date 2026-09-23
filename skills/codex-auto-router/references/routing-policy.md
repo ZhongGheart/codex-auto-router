@@ -10,9 +10,13 @@ The router resolves the active model set from CC Switch on every invocation:
 3. An explicit `--catalog <path>` used for tests or recovery.
 
 The four custom agent files do not declare `model` or
-`model_reasoning_effort`. The parent passes the resolved values as explicit
-spawn overrides. This is what lets the same routing policy move from DeepSeek to
-GPT models through CC Switch without editing the agents.
+`model_reasoning_effort`. Catalog selection produces `catalog_candidate`, while
+the output `model` and `reasoning_effort` remain null and `model_resolution` is
+`catalog_unverified`. The parent checks the current spawn tool's accepted model
+and reasoning choices before passing the candidate as explicit overrides. If
+either choice is absent, it spawns with inherited settings and records the
+degraded resolution. A rejected override gets one retry with inherited settings
+for the same tier. Catalog membership alone never proves spawn compatibility.
 
 When the latest GPT family is available, the intended mapping is:
 
@@ -66,7 +70,10 @@ choices exposed by its subagent tool schema.
 The router should avoid TypeSafe when the task is already unambiguous:
 
 - `quick`: explicit search, locate, read, list, grep, summarize, format, rename,
-  or a single known mechanical change with no behavioral risk.
+  or a single known mechanical change with no behavioral risk. A request that
+  combines retrieval with deletion, editing, replacement, or another mutation
+  is not a deterministic quick route. The same mixed signal sets a STANDARD
+  minimum if TypeSafe returns QUICK.
 - `deep`: explicit security, concurrency, race, deadlock, performance,
   cross-module, migration, or difficult root-cause language.
 - `architect`: explicit whole-system architecture, cross-system redesign,
@@ -133,7 +140,8 @@ tier after it has been selected.
 Every routed subagent prompt should include:
 
 1. `Tier`: the selected tier and reason.
-2. `Model override`: the `model` and `reasoning_effort` returned by the router.
+2. `Model override`: the verified `catalog_candidate` model and reasoning effort,
+   or `inherited` with the reason session compatibility was unverified or absent.
 3. `Outcome`: the observable result the parent needs.
 4. `Governing sources`: requirements, issue, files, or design decisions that constrain the work.
 5. `Evidence`: what has already been established and what remains unknown.

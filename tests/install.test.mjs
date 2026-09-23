@@ -37,7 +37,7 @@ test("installer installs the skill, agents, and routing block idempotently", asy
   assert.equal((agentsMd.match(/# END codex-auto-router/g) ?? []).length, 1);
 });
 
-test("installer preserves an existing unmarked routing section without duplication", async (t) => {
+test("installer replaces an existing unmarked routing section", async (t) => {
   const home = await mkdtemp(path.join(tmpdir(), "codex-auto-router-existing-"));
   t.after(() => rm(home, { recursive: true, force: true }));
 
@@ -56,5 +56,6 @@ test("installer preserves an existing unmarked routing section without duplicati
 
   const agentsMd = await readFile(agentsFile, "utf8");
   assert.equal((agentsMd.match(/^## Automatic model and reasoning routing$/gm) ?? []).length, 1);
-  assert.equal((agentsMd.match(/# BEGIN codex-auto-router/g) ?? []).length, 0);
+  assert.equal((agentsMd.match(/# BEGIN codex-auto-router/g) ?? []).length, 1);
+  assert.equal(agentsMd.includes("Custom rules."), false);
 });

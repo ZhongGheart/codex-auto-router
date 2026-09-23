@@ -2,7 +2,7 @@
 
 面向 Codex 子智能体的动态任务分级与模型路由 Skill。
 
-`codex-auto-router` 会为软件开发任务选择最低但足够的执行等级，从当前 CC Switch 模型目录解析实际可用的模型和推理等级，并只在证据要求时升级。
+`codex-auto-router` 会为软件开发任务选择最低但足够的执行等级，从当前 CC Switch 模型目录提出模型和推理等级候选，并只在证据要求时升级。
 
 [English README](README.md)
 
@@ -22,10 +22,10 @@ codex-auto-router
 quick / standard / deep / architect
    |
    v
-实时解析模型与推理等级
+从目录选择模型与推理等级候选
    |
    v
-使用显式模型覆盖启动 Codex 子智能体
+核对后使用模型覆盖，或继承当前会话设置启动子智能体
 ```
 
 仓库包含：
@@ -86,7 +86,7 @@ architect  -> deepseek-v4-pro  / max
 ```
 
 
-四个 Agent 文件故意不写死 `model` 和 `model_reasoning_effort`。父 Agent 会把路由结果作为显式 spawn 覆盖传入，因此通过 CC Switch 在 DeepSeek 与 GPT 模型之间切换时不需要修改 Agent。
+四个 Agent 文件故意不写死 `model` 和 `model_reasoning_effort`。路由器将目录中的选择放在 `catalog_candidate`，并返回空的 `model`、`reasoning_effort` 覆盖值和 `model_resolution: catalog_unverified`。父 Agent 先核对当前会话的 spawn 工具是否接受候选模型及推理等级；若不接受，则以继承设置启动所选等级的 Agent。切换 CC Switch Provider 时无需修改 Agent 文件。
 
 ## 要求
 
@@ -95,7 +95,7 @@ architect  -> deepseek-v4-pro  / max
 - 模糊任务判级需要 `TYPESAFE_API_KEY`
 - 可选：CC Switch 本地代理
 
-确定性快速路径不依赖 TypeSafe。如果模型目录读取失败，路由结果会返回 `model_resolution: unavailable`，此时使用继承的模型设置，不会猜测模型名。
+确定性快速路径不依赖 TypeSafe。如果模型目录读取失败，路由结果会返回 `model_resolution: unavailable`，此时使用继承的模型设置，不会猜测模型名。目录候选在当前会话确认可用前，不会作为已验证的 spawn 模型。
 
 ## 安装
 

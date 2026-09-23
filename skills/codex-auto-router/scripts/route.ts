@@ -15,6 +15,13 @@ type RouteDefinition = {
   model_resolution: "dynamic" | "unavailable";
 };
 
+type SpawnRoute = {
+  model: null;
+  reasoning_effort: null;
+  model_resolution: "catalog_unverified" | "unavailable";
+  catalog_candidate?: { model: string; reasoning_effort: Effort | null };
+};
+
 type RoutingPlan = {
   routes: Record<Tier, RouteDefinition>;
   source: string;
@@ -124,6 +131,11 @@ const QUICK_PATTERNS: RegExp[] = [
   /(^|\s)(查找|搜索|定位|读取|列出|查看|格式化|重命名|总结|运行明确测试)/,
 ];
 
+const MUTATION_PATTERNS: RegExp[] = [
+  /\b(delete|remove|modify|change|edit|update|replace|alter|disable|drop|strip|rewrite|implement|add|fix|refactor)\b/i,
+  /(删除|移除|修改|更改|编辑|更新|替换|禁用|实现|新增|修复|重构)/,
+];
+
 const STANDARD_PATTERNS: RegExp[] = [
   /\b(implement|add|feature|fix|bug fix|refactor|test|api integration|backend|frontend|ui|database|schema|component|endpoint|page)\b/i,
   /(实现|新增|功能|修复|重构|测试|接口|后端|前端|数据库|组件|页面)/,
@@ -222,6 +234,10 @@ function matches(task: string, patterns: RegExp[]): string[] {
   return patterns.filter((pattern) => pattern.test(task)).map((pattern) => pattern.source);
 }
 
+function hasMixedQuickAndMutation(task: string): boolean {
+  return matches(task, QUICK_PATTERNS).length > 0 && matches(task, MUTATION_PATTERNS).length > 0;
+}
+
 function classifyDeterministic(task: string): DeterministicResult | null {
   const normalized = task.replace(/\s+/g, " ").trim();
   if (!normalized) return null;
@@ -238,7 +254,8 @@ function classifyDeterministic(task: string): DeterministicResult | null {
 
   const quickReasons = matches(normalized, QUICK_PATTERNS);
   const standardReasons = matches(normalized, STANDARD_PATTERNS);
-  if (quickReasons.length > 0 && standardReasons.length === 0 && normalized.length <= 320) {
+  const mutationReasons = matches(normalized, MUTATION_PATTERNS);
+  if (quickReasons.length > 0 && standardReasons.length === 0 && mutationReasons.length === 0 && normalized.length <= 320) {
     return { tier: "quick", confidence: 0.94, reasons: quickReasons };
   }
 
@@ -255,7 +272,8 @@ function classifyFallback(task: string): DeterministicResult {
 
   const quickReasons = matches(normalized, QUICK_PATTERNS);
   const standardReasons = matches(normalized, STANDARD_PATTERNS);
-  if (quickReasons.length > 0 && standardReasons.length === 0) {
+  const mutationReasons = matches(normalized, MUTATION_PATTERNS);
+  if (quickReasons.length > 0 && standardReasons.length === 0 && mutationReasons.length === 0) {
     return { tier: "quick", confidence: 0.72, reasons: quickReasons };
   }
 
@@ -571,6 +589,20 @@ async function loadRoutingPlan(options: Options): Promise<RoutingPlan> {
   );
 }
 
+function serializeRoute(route: RouteDefinition): SpawnRoute {
+  if (route.model_resolution === "unavailable" || !route.model) {
+    return { model: null, reasoning_effort: null, model_resolution: "unavailable" };
+  }
+
+  // The provider catalog does not describe the models accepted by this session's spawn tool.
+  return {
+    model: null,
+    reasoning_effort: null,
+    model_resolution: "catalog_unverified",
+    catalog_candidate: { model: route.model, reasoning_effort: route.reasoning_effort },
+  };
+}
+
 function buildResult(
   task: string,
   tier: Tier,
@@ -581,15 +613,17 @@ function buildResult(
   extra: Record<string, unknown> = {},
 ) {
   const route = plan.routes[tier];
+  const model = serializeRoute(route);
   return {
     action: "route",
     task_summary: task.replace(/\s+/g, " ").slice(0, 500),
     tier,
     agent: route.agent,
-    model: route.model,
+    model: model.model,
     model_provider: "inherited",
-    reasoning_effort: route.reasoning_effort,
-    model_resolution: route.model_resolution,
+    reasoning_effort: model.reasoning_effort,
+    model_resolution: model.model_resolution,
+    ...(model.catalog_candidate ? { catalog_candidate: model.catalog_candidate } : {}),
     model_catalog_source: plan.source,
     available_models: plan.available_models,
     confidence,
@@ -708,6 +742,11 @@ async function routeTask(options: Options) {
       let tier = judged.tier;
       let method = "typesafe";
       const reasons = [...judged.reasons];
+      if (tier === "quick" && hasMixedQuickAndMutation(task)) {
+        tier = "standard";
+        method = "typesafe+mutation-floor";
+        reasons.push("A retrieval or mechanical signal is combined with a mutation; QUICK is insufficient.");
+      }
       if (judged.confidence < options.minConfidence && tier !== "architect") {
         const baseTier = tier;
         tier = nextTier(tier);
@@ -746,15 +785,17 @@ async function escalate(options: Options) {
   const plan = await loadRoutingPlan(options);
   const next = nextTier(current);
   const route = plan.routes[next];
+  const model = serializeRoute(route);
   return {
     action: "escalate",
     current_tier: current,
     next_tier: next,
     agent: route.agent,
-    model: route.model,
+    model: model.model,
     model_provider: "inherited",
-    reasoning_effort: route.reasoning_effort,
-    model_resolution: route.model_resolution,
+    reasoning_effort: model.reasoning_effort,
+    model_resolution: model.model_resolution,
+    ...(model.catalog_candidate ? { catalog_candidate: model.catalog_candidate } : {}),
     model_catalog_source: plan.source,
     available_models: plan.available_models,
     escalated: next !== current,
@@ -926,10 +967,11 @@ async function main(): Promise<void> {
     const plan = await loadRoutingPlan(options);
     result = {
       action: "routes",
-      routes: plan.routes,
+      routes: Object.fromEntries(TIERS.map((tier) => [tier, { ...plan.routes[tier], ...serializeRoute(plan.routes[tier]) }])),
       model_catalog_source: plan.source,
       available_models: plan.available_models,
-      resolved: plan.resolved,
+      resolved: false,
+      catalog_resolved: plan.resolved,
       ...(plan.fallback_reason ? { model_catalog_fallback_reason: plan.fallback_reason } : {}),
       escalation_order: TIERS,
     };

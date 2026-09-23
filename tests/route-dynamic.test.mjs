@@ -32,7 +32,7 @@ async function runRoutesAsync(args) {
 
 function compactRoutes(payload) {
   return Object.fromEntries(
-    Object.entries(payload.routes).map(([tier, route]) => [tier, [route.model, route.reasoning_effort]]),
+    Object.entries(payload.routes).map(([tier, route]) => [tier, [route.catalog_candidate?.model, route.catalog_candidate?.reasoning_effort]]),
   );
 }
 

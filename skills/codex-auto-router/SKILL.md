@@ -23,13 +23,13 @@ printf '%s' "$TASK" | node --experimental-strip-types \
   route --stdin --context "$CONTEXT" --pretty
 ```
 
-The script resolves the current model mapping from the live CC Switch models endpoint, then falls back to the configured `model_catalog_json` file. Do not hard-code GPT or DeepSeek model names in prompts or agent files.
+The script selects a catalog candidate from the live CC Switch models endpoint, then falls back to the configured `model_catalog_json` file. A catalog entry does not prove the current session's spawn tool accepts that model. Do not hard-code GPT or DeepSeek model names in prompts or agent files.
 
 Use `--no-typesafe` only when the TypeSafe service is intentionally unavailable or the task is already on the deterministic fast path. Never print or persist the API key.
 
-4. Read the JSON result. Use its `tier`, `agent`, `model`, `reasoning_effort`, `model_resolution`, `confidence`, `method`, and `reasons` as the routing decision.
-5. Spawn the named custom agent and pass the resolved `model` and `reasoning_effort` explicitly as spawn overrides. The custom agent files intentionally omit static model settings so CC Switch can move between DeepSeek and GPT families without editing the agents.
-6. If `model_resolution` is `unavailable`, do not invent a model. Spawn with inherited model settings, record the degraded resolution, and prefer the tier's conservative instructions. If the custom agent types are missing, run the package installer (`scripts/install.sh`) or copy `agents/*.toml` into `${CODEX_HOME:-$HOME/.codex}/agents/`.
+4. Read the JSON result. Use its `tier`, `agent`, `model_resolution`, `catalog_candidate`, `confidence`, `method`, and `reasons` as the routing decision. `model` and `reasoning_effort` are null until session compatibility is verified.
+5. Compare both fields of `catalog_candidate` against the current spawn tool's model and supported reasoning choices. Pass the candidate as explicit spawn overrides only when both are accepted. Otherwise spawn the named custom agent with inherited model settings and record `catalog_unverified` or `unavailable`. If a spawn rejects an override despite that check, retry once with inherited settings for the same tier; do not retry the rejected override.
+6. If the custom agent types are missing, run the package installer (`scripts/install.sh`) or copy `agents/*.toml` into `${CODEX_HOME:-$HOME/.codex}/agents/`.
 7. Give the subagent a bounded prompt containing: outcome, governing sources, current evidence, allowed write scope, required validation, and required final result. Tell it to return `escalation_needed` with exact evidence rather than drifting outside its tier.
 8. After the subagent returns, verify its claims and artifacts in the parent. Close completed subagent threads when they are no longer needed.
 
@@ -45,7 +45,7 @@ node --experimental-strip-types \
   escalate --current "$CURRENT_TIER" --reason "$REASON" --pretty
 ```
 
-The escalation result resolves the stronger tier against the same live model catalog. Pass its `model` and `reasoning_effort` to the replacement spawn.
+The escalation result selects a candidate against the same catalog. Apply the same session compatibility check before passing spawn overrides.
 
 Do not escalate merely because a test failed once. Escalate after the same root cause fails at least twice, scope or risk materially expands, security or concurrency is discovered, the result remains uncertain below the confidence threshold, or the current agent declares insufficient context or reasoning.
 
