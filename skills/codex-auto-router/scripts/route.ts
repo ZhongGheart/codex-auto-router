@@ -67,25 +67,38 @@ const TIER_META: Record<Tier, { agent: string; label: RouteDefinition["label"]; 
   architect: { agent: "architect", label: "ARCHITECT", desiredEffort: "high" },
 };
 
+function preferredEffortForModel(tier: Tier, model: CatalogModel): Effort {
+  if (tier === "quick" && model.slug.toLowerCase().includes("gpt-6-luna")) return "high";
+  return TIER_META[tier].desiredEffort;
+}
+
 const MODEL_TOKEN_WEIGHTS: Record<Tier, Array<[string, number]>> = {
   quick: [
+    ["gpt-6-luna", 180],
+    ["gpt-5.6-luna", 150],
     ["luna", 120],
     ["flash", 100],
     ["mini", 90],
     ["haiku", 90],
     ["small", 60],
     ["terra", 20],
+    ["sol", -20],
     ["pro", 5],
   ],
   standard: [
-    ["terra", 120],
-    ["medium", 80],
-    ["pro", 60],
-    ["sol", 35],
+    ["gpt-6-sol", 200],
+    ["gpt-5.6-terra", 160],
+    ["gpt-5.6-sol", 120],
+    ["terra", 100],
+    ["sol", 80],
+    ["pro", 80],
+    ["medium", 70],
     ["flash", 25],
     ["luna", 5],
   ],
   deep: [
+    ["gpt-6-sol", 200],
+    ["gpt-5.6-sol", 160],
     ["sol", 120],
     ["pro", 80],
     ["terra", 45],
@@ -94,9 +107,12 @@ const MODEL_TOKEN_WEIGHTS: Record<Tier, Array<[string, number]>> = {
     ["luna", -60],
   ],
   architect: [
+    ["gpt-6-astra", 220],
     ["astra", 150],
+    ["gpt-6-sol", 150],
+    ["gpt-5.6-sol", 120],
     ["sol", 100],
-    ["pro", 70],
+    ["pro", 80],
     ["terra", 25],
     ["flash", -50],
     ["luna", -90],
@@ -394,7 +410,7 @@ function planFromCatalog(models: CatalogModel[], source: string): RoutingPlan {
     routes[tier] = {
       agent: TIER_META[tier].agent,
       model: model.slug,
-      reasoning_effort: chooseEffort(model, TIER_META[tier].desiredEffort),
+      reasoning_effort: chooseEffort(model, preferredEffortForModel(tier, model)),
       label: TIER_META[tier].label,
       model_resolution: "dynamic",
     };
@@ -752,32 +768,27 @@ function runSelfTest() {
   const gptPlan = planFromCatalog(
     [
       {
-        slug: "gpt-5.6-luna",
-        display_name: "GPT-5.6 Luna",
-        supported_reasoning_levels: [{ effort: "low" }, { effort: "medium" }, { effort: "high" }],
+        slug: "gpt-6-luna",
+        display_name: "GPT-6 Luna",
+        supported_reasoning_levels: [{ effort: "low" }, { effort: "medium" }, { effort: "high" }, { effort: "xhigh" }],
       },
       {
-        slug: "gpt-5.6-terra",
-        display_name: "GPT-5.6 Terra",
-        supported_reasoning_levels: [{ effort: "low" }, { effort: "medium" }, { effort: "high" }],
-      },
-      {
-        slug: "gpt-5.6-sol",
-        display_name: "GPT-5.6 Sol",
+        slug: "gpt-6-sol",
+        display_name: "GPT-6 Sol",
         supported_reasoning_levels: [{ effort: "low" }, { effort: "medium" }, { effort: "high" }, { effort: "xhigh" }],
       },
       {
         slug: "gpt-6-astra",
         display_name: "GPT-6 Astra",
-        supported_reasoning_levels: [{ effort: "low" }, { effort: "medium" }, { effort: "high" }],
+        supported_reasoning_levels: [{ effort: "low" }, { effort: "medium" }, { effort: "high" }, { effort: "xhigh" }],
       },
     ],
-    "selftest:gpt",
+    "selftest:gpt-6",
   );
   const gptExpected = {
-    quick: ["gpt-5.6-luna", "low"],
-    standard: ["gpt-5.6-terra", "medium"],
-    deep: ["gpt-5.6-sol", "high"],
+    quick: ["gpt-6-luna", "high"],
+    standard: ["gpt-6-sol", "medium"],
+    deep: ["gpt-6-sol", "high"],
     architect: ["gpt-6-astra", "high"],
   };
   const gptActual = Object.fromEntries(

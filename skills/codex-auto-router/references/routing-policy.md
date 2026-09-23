@@ -14,14 +14,23 @@ The four custom agent files do not declare `model` or
 spawn overrides. This is what lets the same routing policy move from DeepSeek to
 GPT models through CC Switch without editing the agents.
 
-When the GPT family is available, the intended mapping is:
+When the latest GPT family is available, the intended mapping is:
 
 | Tier | Agent | Preferred model | Preferred reasoning |
+| --- | --- | --- | --- |
+| QUICK | `quick` | `gpt-6-luna` | `high` |
+| STANDARD | `standard` | `gpt-6-sol` | `medium` |
+| DEEP | `deep` | `gpt-6-sol` | `high` |
+| ARCHITECT | `architect` | `gpt-6-astra` | `high` |
+
+When GPT-6 is unavailable but GPT-5.6 is present, the router falls back to:
+
+| Tier | Agent | Fallback model | Fallback reasoning |
 | --- | --- | --- | --- |
 | QUICK | `quick` | `gpt-5.6-luna` | `low` |
 | STANDARD | `standard` | `gpt-5.6-terra` | `medium` |
 | DEEP | `deep` | `gpt-5.6-sol` | `high` |
-| ARCHITECT | `architect` | `gpt-6-astra` | `high` |
+| ARCHITECT | `architect` | `gpt-5.6-sol` | `xhigh` |
 
 When the active CC Switch provider exposes the DeepSeek family, the same policy
 adapts to:
@@ -34,15 +43,16 @@ adapts to:
 | ARCHITECT | `architect` | `deepseek-v4-pro` | `max` |
 
 The script scores model identifiers and display names by family intent. It
-prefers Luna or fast/mini models for QUICK, Terra or balanced/pro models for
-STANDARD, Sol or pro models for DEEP, and Astra or the strongest available model
-for ARCHITECT. It then selects an exact supported reasoning level or the nearest
+prefers GPT-6 Luna or fast/mini models for QUICK, GPT-6 Sol, Terra, or pro
+models for STANDARD, GPT-6 Sol or pro models for DEEP, and GPT-6 Astra or the
+strongest available model for ARCHITECT. It then selects an exact supported reasoning level or the nearest
 higher level. If adjacent tiers resolve to the same model, it raises the
 stronger tier's reasoning level when a higher level is available so the tiers
 remain meaningfully separated.
 
-If Astra is unavailable, ARCHITECT falls back to Sol and raises reasoning to the
-next supported level, such as `xhigh`, instead of selecting a weaker family.
+If GPT-6 Astra is unavailable, ARCHITECT falls back to GPT-6 Sol and raises
+reasoning to the next supported level, such as `xhigh`, instead of selecting a
+weaker family.
 If no catalog can be read, model resolution becomes `unavailable`; use inherited
 model settings rather than inventing a slug.
 

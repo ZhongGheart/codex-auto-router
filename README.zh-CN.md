@@ -43,7 +43,7 @@ quick / standard / deep / architect
 | 等级 | 用途 | 常见模型 |
 | --- | --- | --- |
 | `quick` | 搜索、定位、读取、总结、格式化、重命名、确定性机械修改 | Luna / Flash / Mini |
-| `standard` | 普通功能、局部修复、测试、范围明确的实现 | Terra / Pro |
+| `standard` | 普通功能、局部修复、测试、范围明确的实现 | Sol / Terra / Pro |
 | `deep` | 难排查问题、跨模块、性能、并发、安全、迁移 | Sol / Pro |
 | `architect` | 系统级设计、跨服务权衡、不可逆决策、Deep 多次失败 | Astra / 当前最强模型 |
 
@@ -56,16 +56,25 @@ quick / standard / deep / architect
 3. `~/.codex/config.toml` 中的 `model_catalog_json`
 4. 测试或恢复时显式传入的 `--catalog`
 
-GPT 模型可用时的预期映射：
+最新 GPT 模型按照 OpenAI 官方模型建议映射：
+
+```text
+quick      -> gpt-6-luna   / high
+standard   -> gpt-6-sol    / medium
+deep       -> gpt-6-sol    / high
+architect  -> gpt-6-astra  / high
+```
+
+GPT-5.6 在过渡期作为回退：
 
 ```text
 quick      -> gpt-5.6-luna  / low
 standard   -> gpt-5.6-terra / medium
 deep       -> gpt-5.6-sol   / high
-architect  -> gpt-6-astra   / high
+architect  -> gpt-5.6-sol   / xhigh
 ```
 
-如果 Astra 不可用，`architect` 会回退到 Sol，并提升到支持的下一个推理等级，例如 `xhigh`。
+如果 GPT-6 Astra 不可用，`architect` 会回退到 `gpt-6-sol`，并提升到支持的下一个推理等级，例如 `xhigh`。
 
 四个 Agent 文件故意不写死 `model` 和 `model_reasoning_effort`。父 Agent 会把路由结果作为显式 spawn 覆盖传入，因此通过 CC Switch 在 DeepSeek 与 GPT 模型之间切换时不需要修改 Agent。
 
@@ -137,7 +146,7 @@ npm test
 
 测试覆盖：
 
-- DeepSeek 与 GPT 模型目录适配
+- DeepSeek、GPT-6 与 GPT-5.6 模型目录适配
 - Astra 缺失时的回退与推理等级提升
 - 实时 `/v1/models` 发现
 - 插件清单完整性

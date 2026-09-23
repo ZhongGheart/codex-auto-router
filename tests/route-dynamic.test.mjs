@@ -46,18 +46,28 @@ test("adapts to the DeepSeek catalog", () => {
   });
 });
 
-test("adapts to the GPT catalog", () => {
+test("adapts to the latest GPT-6 catalog", () => {
   const payload = runRoutes(["--catalog", path.join(fixtures, "gpt-catalog.json"), "--no-live-models"]);
   assert.deepEqual(compactRoutes(payload), {
-    quick: ["gpt-5.6-luna", "low"],
-    standard: ["gpt-5.6-terra", "medium"],
-    deep: ["gpt-5.6-sol", "high"],
+    quick: ["gpt-6-luna", "high"],
+    standard: ["gpt-6-sol", "medium"],
+    deep: ["gpt-6-sol", "high"],
     architect: ["gpt-6-astra", "high"],
   });
 });
 
-test("raises architect reasoning when Astra is unavailable", () => {
+test("raises architect reasoning when GPT-6 Astra is unavailable", () => {
   const payload = runRoutes(["--catalog", path.join(fixtures, "gpt-no-astra-catalog.json"), "--no-live-models"]);
+  assert.deepEqual(compactRoutes(payload), {
+    quick: ["gpt-6-luna", "high"],
+    standard: ["gpt-6-sol", "medium"],
+    deep: ["gpt-6-sol", "high"],
+    architect: ["gpt-6-sol", "xhigh"],
+  });
+});
+
+test("falls back to the GPT-5.6 family when GPT-6 is unavailable", () => {
+  const payload = runRoutes(["--catalog", path.join(fixtures, "gpt-5.6-catalog.json"), "--no-live-models"]);
   assert.deepEqual(compactRoutes(payload), {
     quick: ["gpt-5.6-luna", "low"],
     standard: ["gpt-5.6-terra", "medium"],
@@ -85,9 +95,9 @@ test("resolves the GPT mapping from a live models endpoint", async (t) => {
   const payload = await runRoutesAsync(["--models-url", `http://127.0.0.1:${address.port}/v1/models`]);
   assert.equal(payload.model_catalog_source, `live:http://127.0.0.1:${address.port}/v1/models`);
   assert.deepEqual(compactRoutes(payload), {
-    quick: ["gpt-5.6-luna", "low"],
-    standard: ["gpt-5.6-terra", "medium"],
-    deep: ["gpt-5.6-sol", "high"],
+    quick: ["gpt-6-luna", "high"],
+    standard: ["gpt-6-sol", "medium"],
+    deep: ["gpt-6-sol", "high"],
     architect: ["gpt-6-astra", "high"],
   });
 });

@@ -43,7 +43,7 @@ The repository contains:
 | Tier | Job | Typical model family |
 | --- | --- | --- |
 | `quick` | Search, locate, read, summarize, format, rename, deterministic edits | Luna / Flash / Mini |
-| `standard` | Normal feature work, localized fixes, tests, clear-scope implementation | Terra / Pro |
+| `standard` | Normal feature work, localized fixes, tests, clear-scope implementation | Sol / Terra / Pro |
 | `deep` | Difficult diagnosis, cross-module work, performance, concurrency, security, migrations | Sol / Pro |
 | `architect` | Whole-system design, cross-service tradeoffs, irreversible decisions, repeated deep failure | Astra / strongest available |
 
@@ -56,16 +56,25 @@ The router resolves models on every invocation:
 3. The `model_catalog_json` path from `~/.codex/config.toml`.
 4. An explicit `--catalog <path>` for tests or recovery.
 
-When the GPT family is available, the intended mapping is:
+The latest GPT mapping follows the official OpenAI model guidance:
+
+```text
+quick      -> gpt-6-luna   / high
+standard   -> gpt-6-sol    / medium
+deep       -> gpt-6-sol    / high
+architect  -> gpt-6-astra  / high
+```
+
+GPT-5.6 remains a fallback during rollout:
 
 ```text
 quick      -> gpt-5.6-luna  / low
 standard   -> gpt-5.6-terra / medium
 deep       -> gpt-5.6-sol   / high
-architect  -> gpt-6-astra   / high
+architect  -> gpt-5.6-sol   / xhigh
 ```
 
-If Astra is unavailable, `architect` falls back to Sol and raises reasoning to the next supported level, such as `xhigh`.
+If GPT-6 Astra is unavailable, `architect` falls back to `gpt-6-sol` and raises reasoning to the next supported level, such as `xhigh`.
 
 The custom agent files intentionally omit `model` and `model_reasoning_effort`. The parent passes the resolved values as explicit spawn overrides, so switching CC Switch providers does not require editing the agents.
 
@@ -137,7 +146,7 @@ npm test
 
 The tests cover:
 
-- DeepSeek and GPT catalog adaptation
+- DeepSeek, GPT-6, and GPT-5.6 catalog adaptation
 - Astra fallback and reasoning escalation
 - live `/v1/models` discovery
 - plugin manifest completeness
