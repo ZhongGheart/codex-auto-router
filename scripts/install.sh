@@ -32,7 +32,7 @@ for name in quick standard deep architect; do
   cp "$ROOT/agents/$name.toml" "$AGENT_DEST/$name.toml"
 done
 
-if ! grep -q '^# BEGIN codex-auto-router$' "$AGENTS_FILE" 2>/dev/null; then
+if ! grep -q -E '^(# BEGIN codex-auto-router|## Automatic model and reasoning routing)$' "$AGENTS_FILE" 2>/dev/null; then
   if [ -f "$AGENTS_FILE" ]; then
     mkdir -p "$BACKUP_DIR"
     cp -p "$AGENTS_FILE" "$BACKUP_DIR/AGENTS.md"

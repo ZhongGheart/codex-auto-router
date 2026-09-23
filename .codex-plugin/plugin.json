@@ -1,6 +1,6 @@
 {
   "name": "codex-auto-router",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Dynamic task-complexity routing for Codex with TypeSafe judgment and CC Switch model awareness.",
   "author": {
     "name": "ZhongGheart",

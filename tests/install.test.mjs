@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -35,4 +35,26 @@ test("installer installs the skill, agents, and routing block idempotently", asy
   const agentsMd = await readFile(path.join(home, ".codex", "AGENTS.md"), "utf8");
   assert.equal((agentsMd.match(/# BEGIN codex-auto-router/g) ?? []).length, 1);
   assert.equal((agentsMd.match(/# END codex-auto-router/g) ?? []).length, 1);
+});
+
+test("installer preserves an existing unmarked routing section without duplication", async (t) => {
+  const home = await mkdtemp(path.join(tmpdir(), "codex-auto-router-existing-"));
+  t.after(() => rm(home, { recursive: true, force: true }));
+
+  const env = {
+    ...process.env,
+    HOME: home,
+    CODEX_HOME: path.join(home, ".codex"),
+    AGENTS_HOME: path.join(home, ".agents"),
+  };
+  const agentsFile = path.join(home, ".codex", "AGENTS.md");
+  await mkdir(path.dirname(agentsFile), { recursive: true });
+  await writeFile(agentsFile, "# Existing\n\n## Automatic model and reasoning routing\n\nCustom rules.\n");
+
+  execFileSync("bash", [path.join(root, "scripts", "install.sh")], { env });
+  execFileSync("bash", [path.join(root, "scripts", "install.sh")], { env });
+
+  const agentsMd = await readFile(agentsFile, "utf8");
+  assert.equal((agentsMd.match(/^## Automatic model and reasoning routing$/gm) ?? []).length, 1);
+  assert.equal((agentsMd.match(/# BEGIN codex-auto-router/g) ?? []).length, 0);
 });
