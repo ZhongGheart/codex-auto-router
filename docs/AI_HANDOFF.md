@@ -246,3 +246,12 @@ Parent performs final acceptance. Global installation or synchronization remains
 - Installed CLI returns ready_override with Luna/high, 6.1 Sol/medium, 6.1 Sol/high and Astra/high using this session's actual capability set. Explicit overrides work without profile synchronization or a client restart.
 - Successfully spawned a DEEP agent with explicit gpt-6.1-sol/high; it returned sol61-override-spawn-ok and confirmed scoring/Astra priority by read-only inspection.
 - Next: commit verified 0.3.0 release changes, push main and annotated v0.3.0 tag, publish GitHub Release, inspect remote release/CI. The journal will record the resulting publication state after these actions.
+
+## Final milestone: v0.3.0 published and deployed
+
+- Release implementation commit: 4c8ed2333875ab4e764659da91966b5f85c48319. Atomic push of main and annotated v0.3.0 succeeded.
+- Published GitHub Release: https://github.com/ZhongGheart/codex-auto-router/releases/tag/v0.3.0 (not a draft).
+- Both release commit CI runs completed successfully: https://github.com/ZhongGheart/codex-auto-router/actions/runs/36817227311 and https://github.com/ZhongGheart/codex-auto-router/actions/runs/36817227306.
+- Local deployment and installed CLI were verified before publication, including actual gpt-6.1-sol/high override spawn. Full suite: 26/26. All authorized implementation, publication and deployment work is complete.
+- Final route map: QUICK gpt-6-luna/high; STANDARD gpt-6.1-sol/medium; DEEP gpt-6.1-sol/high; ARCHITECT gpt-6-astra/high, or 6.1 Sol/xhigh when Astra is absent and that effort is supported.
+- Source remains at the actual repository path recorded above. Session schema remains authoritative; profile-only provider changes still require matching loaded fingerprints after a fresh task/restart. Current explicit overrides need no restart.
