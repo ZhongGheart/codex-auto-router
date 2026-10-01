@@ -1,5 +1,5 @@
 name = "deep"
-# Model and reasoning effort are supplied dynamically by codex-auto-router.
+# Stable instruction template; sync-agents generates model fields in the installed profile.
 description = "Deep engineering agent for difficult debugging, cross-module changes, performance, concurrency, security, migrations, and material ambiguity."
 
 developer_instructions = """

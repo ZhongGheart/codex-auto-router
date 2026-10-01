@@ -25,7 +25,7 @@ quick / standard / deep / architect
 从目录选择模型与推理等级候选
    |
    v
-核对后使用模型覆盖，或继承当前会话设置启动子智能体
+使用已验证的模型覆盖，或使用指纹完全匹配的生成配置
 ```
 
 仓库包含：
@@ -56,12 +56,12 @@ quick / standard / deep / architect
 3. `~/.codex/config.toml` 中的 `model_catalog_json`
 4. 测试或恢复时显式传入的 `--catalog`
 
-最新 GPT 模型按照 OpenAI 官方模型建议映射：
+当前会话支持 GPT-6.1 Sol 时，优先映射为：
 
 ```text
 quick      -> gpt-6-luna   / high
-standard   -> gpt-6-sol    / medium
-deep       -> gpt-6-sol    / high
+standard   -> gpt-6.1-sol  / medium
+deep       -> gpt-6.1-sol  / high
 architect  -> gpt-6-astra  / high
 ```
 
@@ -74,7 +74,7 @@ deep       -> gpt-5.6-sol   / high
 architect  -> gpt-5.6-sol   / xhigh
 ```
 
-如果 GPT-6 Astra 不可用，`architect` 会回退到 `gpt-6-sol`，并提升到支持的下一个推理等级，例如 `xhigh`。
+如果 GPT-6 Astra 不可用，`architect` 会回退到 `gpt-6.1-sol`，并提升到支持的下一个推理等级，例如 `xhigh`。如果 GPT-6.1 Sol 也不可用，则保留原有的 `gpt-6-sol` 映射。
 
 当前目录只有 DeepSeek 模型时，路由器使用：
 
@@ -86,7 +86,9 @@ architect  -> deepseek-v4-pro  / max
 ```
 
 
-四个 Agent 文件故意不写死 `model` 和 `model_reasoning_effort`。路由器将目录中的选择放在 `catalog_candidate`，并返回空的 `model`、`reasoning_effort` 覆盖值和 `model_resolution: catalog_unverified`。父 Agent 先核对当前会话的 spawn 工具是否接受候选模型及推理等级；若不接受，则以继承设置启动所选等级的 Agent。切换 CC Switch Provider 时无需修改 Agent 文件。
+仓库中的四个 Agent 文件是稳定的指令模板，故意不写死 `model` 和 `model_reasoning_effort`。父 Agent 通过 `--spawn-capabilities` 传入当前 spawn 工具按模型列出的能力；路由器据此评分并生成完整的四层计划，且只选择该模型明确支持的推理等级。当前会话计划是可执行 `ready_override` 的权威来源，即使模型目录已过期或属于另一模型家族，目录候选与来源也只保留为诊断信息。只有会话能力无法形成完整计划时，才使用生成配置；此时磁盘状态必须与当前目录身份、完整路由表指纹完全一致，并且当前会话加载的四个 Agent 描述都暴露同一指纹，才返回 `ready_profile`。
+
+配置缺失或过期时返回 `restart_required`，并给出 `sync-agents` 命令和新开任务/重启提示；目录失败返回 `unavailable`；配置状态无法验证时返回 `blocked`。继承父会话设置不再被视为自动模型路由成功。
 
 ## 要求
 
@@ -95,7 +97,7 @@ architect  -> deepseek-v4-pro  / max
 - 模糊任务判级需要 `TYPESAFE_API_KEY`
 - 可选：CC Switch 本地代理
 
-确定性快速路径不依赖 TypeSafe。如果模型目录读取失败，路由结果会返回 `model_resolution: unavailable`，此时使用继承的模型设置，不会猜测模型名。目录候选在当前会话确认可用前，不会作为已验证的 spawn 模型。
+确定性快速路径不依赖 TypeSafe。父 Agent 必须保留用户明确指定的模型或推理等级，不得用自动路由替换。Skill 无法自省自己的 spawn schema、重载自定义 Agent 或重启 Codex，因此会话能力必须由父 Agent 提供。只有显式会话覆盖无法提供完整路由时才同步配置；同步后必须新开任务或重启客户端。
 
 ## 安装
 
@@ -108,7 +110,7 @@ cd codex-auto-router
 安装脚本会：
 
 - 安装 Skill 到 `${AGENTS_HOME:-$HOME/.agents}/skills/codex-auto-router`
-- 安装四个 Agent 到 `${CODEX_HOME:-$HOME/.codex}/agents`
+- 在 Skill 旁安装规范 Agent 模板，并只向 `${CODEX_HOME:-$HOME/.codex}/agents` 补齐缺失的 Agent
 - 向 `AGENTS.md` 追加幂等的 `codex-auto-router` 路由规则
 - 修改前备份已有 Skill、Agent 和 `AGENTS.md`
 
@@ -141,6 +143,31 @@ node --experimental-strip-types \
   skills/codex-auto-router/scripts/route.ts routes --pretty
 ```
 
+路由时传入当前 spawn schema（父 Agent 从工具定义生成该 JSON）：
+
+```bash
+node --experimental-strip-types \
+  skills/codex-auto-router/scripts/route.ts route \
+  --task "查找认证中间件" \
+  --spawn-capabilities '{"models":[{"model":"gpt-6-luna","reasoning_efforts":["low","medium","high"]}]}' \
+  --pretty
+```
+
+若结果为 `restart_required`，运行返回的 `sync_command`，或直接同步：
+
+```bash
+node --experimental-strip-types \
+  skills/codex-auto-router/scripts/route.ts sync-agents --pretty
+```
+
+同步会先验证并暂存四个配置，备份将替换的文件，保留无关 Agent，写入 `${CODEX_HOME}/codex-auto-router-state.json`，并在每个生成的 Agent 描述末尾追加 `[codex-auto-router:<fingerprint>]`。随后必须新开任务或重启客户端。从新会话的 spawn schema 中提取 `quick`、`standard`、`deep`、`architect` 描述里的同一标记，并在每次 route/escalation 时传入：
+
+```bash
+--loaded-profile-fingerprint <sha256>
+```
+
+标记缺失、不一致或过期时，即使磁盘文件已经匹配，仍返回 `restart_required`。
+
 运行自检：
 
 ```bash
@@ -159,6 +186,8 @@ npm test
 - DeepSeek、GPT-6 与 GPT-5.6 模型目录适配
 - Astra 缺失时的回退与推理等级提升
 - 实时 `/v1/models` 发现
+- 以会话 spawn schema 为权威的规划、跨模型家族目录诊断与显式解析状态
+- 生成配置的原子同步、指纹、备份与失败保护
 - 插件清单完整性
 - 安装脚本幂等性
 
@@ -181,7 +210,7 @@ tests/
 
 ## 说明
 
-- CC Switch 切换 Provider 后，建议新开 Codex 任务或重启客户端，让 spawn 的模型可选列表同步。
+- CC Switch 切换 Provider 或同步配置后，必须新开 Codex 任务或重启客户端，并传入新 spawn schema 中四个 Agent 的共同指纹。
 - 插件清单用于打包 Skill；自定义 Agent TOML 仍通过安装脚本写入用户级 Codex Agent 目录。
 - 路由脚本不会打印或持久化 TypeSafe API Key。
 

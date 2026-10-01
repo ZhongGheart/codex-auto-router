@@ -26,10 +26,14 @@ for name in quick standard deep architect; do
 done
 
 cp -R "$SKILL_SOURCE/." "$SKILL_DEST/"
+mkdir -p "$SKILL_DEST/agent-templates"
+cp "$ROOT"/agents/*.toml "$SKILL_DEST/agent-templates/"
 chmod +x "$SKILL_DEST/scripts/route.ts"
 
 for name in quick standard deep architect; do
-  cp "$ROOT/agents/$name.toml" "$AGENT_DEST/$name.toml"
+  if [ ! -f "$AGENT_DEST/$name.toml" ]; then
+    cp "$ROOT/agents/$name.toml" "$AGENT_DEST/$name.toml"
+  fi
 done
 
 if [ -f "$AGENTS_FILE" ]; then
@@ -52,7 +56,7 @@ For software-engineering tasks in a repository, activate and follow the `codex-a
 - Preserve explicit user choices for model, reasoning effort, agent, or execution mode.
 - Use the deterministic fast path for obvious retrieval or mechanical work and use TypeSafe only for ambiguous routing decisions.
 - Delegate to the exact custom agent selected by the router: `quick`, `standard`, `deep`, or `architect`.
-- Pass the router's resolved `model` and `reasoning_effort` as explicit spawn overrides only when both are accepted by the current session's spawn tool; otherwise use inherited settings and record the degraded mapping.
+- Supply current spawn capabilities and the one common `[codex-auto-router:<fingerprint>]` marker from all four loaded agent descriptions to every route/escalation. Treat a complete current-session capability plan as authoritative and use `ready_override` directly even when catalog diagnostics differ. Use `ready_profile` only when explicit session routes are unavailable and the loaded marker and generated profiles match; for `restart_required`, synchronize profiles and start a fresh task before delegation.
 - Keep the parent agent responsible for requirements, scope, synthesis, and final verification.
 - Escalate only for policy-defined triggers such as repeated same-root-cause failure, material scope or risk expansion, discovered security/concurrency risk, low routing confidence, or explicit insufficient-context reporting.
 - Never downgrade an already established higher tier merely to reduce tokens.
